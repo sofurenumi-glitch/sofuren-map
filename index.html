@@ -94,17 +94,11 @@ header {
   animation:fadeUp .25s ease both;
 }
 .card:active { transform:scale(.98); }
-.card.home { border-color:var(--gold); }
 @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
 .card-inner { display:flex; align-items:center; padding:11px 13px; gap:10px; }
 .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:1px; }
 .card-body { flex:1; min-width:0; }
 .card-name { font-size:14px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.home-tag {
-  display:inline-block; background:var(--gold); color:#fff;
-  font-size:9px; padding:1px 5px; border-radius:3px;
-  margin-left:5px; font-weight:700; vertical-align:middle;
-}
 .card-addr { font-size:11px; color:rgba(26,16,8,.45); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .area-tag  { font-size:10px; padding:2px 8px; border-radius:20px; white-space:nowrap; flex-shrink:0; font-weight:700; }
 
@@ -125,7 +119,6 @@ header {
 .d-head { padding:14px 18px 12px; border-bottom:1px solid var(--warm); }
 .d-area-tag { font-size:10px; padding:2px 9px; border-radius:20px; font-weight:700; display:inline-block; margin-bottom:7px; }
 .d-name { font-size:20px; font-weight:700; line-height:1.3; color:var(--ink); }
-.d-home-note { font-size:11px; color:var(--gold); font-weight:700; margin-top:5px; }
 .d-body { padding:14px 18px; }
 .info-row { display:flex; gap:10px; margin-bottom:13px; align-items:flex-start; }
 .i-icon { width:30px; height:30px; background:var(--warm); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
@@ -190,7 +183,7 @@ footer {
   <div id="storeList"></div>
 </div>
 
-<footer>想夫恋 宇美店 後藤堅太郎 ｜ sofuren.com</footer>
+<footer>想夫恋 全国店舗MAP ｜ sofuren.com</footer>
 
 <div class="ov" id="ov"></div>
 <div class="drawer" id="drawer">
@@ -198,7 +191,7 @@ footer {
   <div class="d-head">
     <div class="d-area-tag" id="dArea"></div>
     <div class="d-name"     id="dName"></div>
-    <div class="d-home-note" id="dHome"></div>
+
   </div>
   <div class="d-body">
     <div class="info-row">
@@ -238,7 +231,7 @@ var STORES = [
   {id:12, n:"小郡店",                area:"福岡",   addr:"小郡市津古1133-1",                           tel:"0942-75-3488", hrs:"11:00〜21:00 / 木曜休",              lat:33.4461,lng:130.5533},
   {id:13, n:"大野城店",              area:"福岡",   addr:"大野城市錦町3-5-38",                         tel:"092-572-2133", hrs:"11:00〜20:00 / 木曜休",              lat:33.5381,lng:130.4775},
   {id:14, n:"春日大土居店",          area:"福岡",   addr:"春日市天神山3-33",                           tel:"092-582-2080", hrs:"11:00〜20:30 / 木曜休",              lat:33.5169,lng:130.4520},
-  {id:15, n:"宇美店",                area:"福岡",   addr:"福岡県糟屋郡宇美町大字宇美3293-1",          tel:"092-933-3991", hrs:"11:00〜15:00 / 17:30〜19:30 / 木曜休", lat:33.5691,lng:130.5252, home:true},
+  {id:15, n:"宇美店",                area:"福岡",   addr:"福岡県糟屋郡宇美町大字宇美3293-1",          tel:"092-933-3991", hrs:"11:00〜15:00 / 17:30〜19:30 / 木曜休", lat:33.5691,lng:130.5252},
   {id:16, n:"渡辺通店",              area:"福岡",   addr:"福岡市中央区渡辺通5丁目1-22",               tel:"092-406-3474", hrs:"9:00〜翌2:30",                        lat:33.5888,lng:130.4043},
   {id:17, n:"博多駅前店",            area:"福岡",   addr:"福岡市博多区博多駅前3丁目16-2",             tel:"092-481-0038", hrs:"11:00〜21:30 / 木曜休",              lat:33.5889,lng:130.4136},
   {id:18, n:"福岡インター店",        area:"福岡",   addr:"福岡市東区松島3-34-27",                      tel:"092-623-6041", hrs:"11:00〜20:20 / 木・第3日曜休",       lat:33.6265,lng:130.4413},
@@ -327,8 +320,8 @@ function makeIcon(color, isHome) {
 function drawMarkers(stores) {
   markerGroup.clearLayers();
   stores.forEach(function(s) {
-    var color = s.home ? '#b8860b' : AC[s.area].pin;
-    var marker = L.marker([s.lat, s.lng], { icon: makeIcon(color, s.home) });
+    var color = AC[s.area].pin;
+    var marker = L.marker([s.lat, s.lng], { icon: makeIcon(color, false) });
 
     var popupHtml =
       '<div class="popup-area">' + s.area + '地区</div>' +
@@ -350,15 +343,13 @@ function drawList(stores) {
   stores.forEach(function(s, i) {
     var c = AC[s.area];
     var d = document.createElement('div');
-    d.className = 'card' + (s.home ? ' home' : '');
+    d.className = 'card';
     d.style.animationDelay = (i * 0.025) + 's';
     d.innerHTML =
       '<div class="card-inner">' +
         '<div class="dot" style="background:' + c.pin + '"></div>' +
         '<div class="card-body">' +
-          '<div class="card-name">想夫恋 ' + s.n +
-            (s.home ? '<span class="home-tag">堅太郎の店</span>' : '') +
-          '</div>' +
+          '<div class="card-name">想夫恋 ' + s.n + '</div>' +
           '<div class="card-addr">' + s.addr + '</div>' +
         '</div>' +
         '<div class="area-tag ' + c.cls + '">' + s.area + '</div>' +
@@ -405,7 +396,7 @@ function openDrawer(s) {
   document.getElementById('dArea').textContent  = s.area + '地区';
   document.getElementById('dArea').className    = 'd-area-tag ' + c.cls;
   document.getElementById('dName').textContent  = '想夫恋 ' + s.n;
-  document.getElementById('dHome').textContent  = s.home ? '★ここが後藤堅太郎の店です' : '';
+  document.getElementById('dHome') && (document.getElementById('dHome').textContent = '');
   document.getElementById('dAddr').textContent  = s.addr;
   document.getElementById('dTel').innerHTML     = '<a href="tel:' + s.tel.replace(/-/g,'') + '">' + s.tel + '</a>';
   document.getElementById('dHours').textContent = s.hrs;
