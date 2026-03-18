@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>想夫恋 全国店舗MAP</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --ink: #1a1008;
+  --red: #c0392b;
+  --gold: #b8860b;
+  --cream: #faf6ef;
+  --warm: #e8e0d4;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; }
+body {
+  font-family: 'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',Georgia,serif;
+  background: var(--cream);
+  color: var(--ink);
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100%;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--ink);
+  padding: 14px 16px 10px;
+  position: sticky; top:0; z-index:1000;
+  box-shadow: 0 2px 10px rgba(0,0,0,.35);
+}
+.h-top { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.logo {
+  width:34px; height:34px; background:var(--red);
+  border-radius:50%; display:flex; align-items:center; justify-content:center;
+  color:#fff; font-weight:900; font-size:15px; flex-shrink:0;
+}
+.h-title { flex:1; }
+.h-title h1 { color:#fff; font-size:14px; letter-spacing:.06em; }
+.h-title p  { color:rgba(255,255,255,.45); font-size:9px; letter-spacing:.15em; margin-top:1px; }
+.badge { background:var(--red); color:#fff; font-size:10px; padding:3px 8px; border-radius:20px; flex-shrink:0; }
+
+.filters { display:flex; gap:5px; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+.filters::-webkit-scrollbar { display:none; }
+.f-btn {
+  background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.22);
+  color:rgba(255,255,255,.7); padding:4px 11px; border-radius:20px;
+  font-size:11px; font-family:inherit; white-space:nowrap; cursor:pointer;
+  transition:.15s; flex-shrink:0;
+}
+.f-btn.on { background:var(--red); border-color:var(--red); color:#fff; font-weight:700; }
+
+/* ── MAP ── */
+#map {
+  width:100%; height:320px;
+  z-index:1;
+}
+
+/* Leaflet カスタムポップアップ */
+.leaflet-popup-content-wrapper {
+  background: var(--ink);
+  color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  font-family: 'Hiragino Mincho ProN','Yu Mincho',serif;
+}
+.leaflet-popup-tip { background: var(--ink); }
+.leaflet-popup-content { margin: 10px 14px; font-size: 13px; line-height:1.6; }
+.leaflet-popup-close-button { color: rgba(255,255,255,.6) !important; font-size:18px !important; }
+.popup-name { font-weight:700; font-size:14px; margin-bottom:4px; }
+.popup-area { font-size:10px; opacity:.6; margin-bottom:6px; }
+.popup-detail-btn {
+  display:block; margin-top:8px;
+  background:var(--red); color:#fff;
+  border:none; border-radius:6px;
+  padding:6px 14px; font-size:11px;
+  font-family:inherit; font-weight:700;
+  cursor:pointer; width:100%; text-align:center;
+}
+
+/* ── LIST ── */
+.list-wrap { padding: 0 0 72px; }
+.list-head { padding:12px 16px 6px; display:flex; align-items:baseline; gap:8px; }
+.list-label { font-size:11px; color:var(--gold); letter-spacing:.2em; }
+.list-cnt   { font-size:10px; color:rgba(26,16,8,.4); }
+
+.card {
+  margin:0 12px 7px; background:#fff; border-radius:10px;
+  box-shadow:0 1px 4px rgba(26,16,8,.1); border:1.5px solid transparent;
+  cursor:pointer; transition:.15s;
+  animation:fadeUp .25s ease both;
+}
+.card:active { transform:scale(.98); }
+.card.home { border-color:var(--gold); }
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+.card-inner { display:flex; align-items:center; padding:11px 13px; gap:10px; }
+.dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:1px; }
+.card-body { flex:1; min-width:0; }
+.card-name { font-size:14px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.home-tag {
+  display:inline-block; background:var(--gold); color:#fff;
+  font-size:9px; padding:1px 5px; border-radius:3px;
+  margin-left:5px; font-weight:700; vertical-align:middle;
+}
+.card-addr { font-size:11px; color:rgba(26,16,8,.45); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.area-tag  { font-size:10px; padding:2px 8px; border-radius:20px; white-space:nowrap; flex-shrink:0; font-weight:700; }
+
+/* ── DRAWER ── */
+.ov { position:fixed; inset:0; background:rgba(26,16,8,.45); z-index:2000; opacity:0; pointer-events:none; transition:opacity .25s; }
+.ov.open { opacity:1; pointer-events:all; }
+.drawer {
+  position:fixed; bottom:0; left:50%;
+  transform:translateX(-50%) translateY(100%);
+  width:100%; max-width:480px;
+  background:var(--cream); border-radius:18px 18px 0 0;
+  z-index:2001; transition:transform .28s cubic-bezier(.32,.72,0,1);
+  max-height:80vh; overflow-y:auto;
+  padding-bottom: env(safe-area-inset-bottom,16px);
+}
+.drawer.open { transform:translateX(-50%) translateY(0); }
+.d-handle { width:34px; height:4px; background:rgba(26,16,8,.18); border-radius:2px; margin:11px auto 0; }
+.d-head { padding:14px 18px 12px; border-bottom:1px solid var(--warm); }
+.d-area-tag { font-size:10px; padding:2px 9px; border-radius:20px; font-weight:700; display:inline-block; margin-bottom:7px; }
+.d-name { font-size:20px; font-weight:700; line-height:1.3; color:var(--ink); }
+.d-home-note { font-size:11px; color:var(--gold); font-weight:700; margin-top:5px; }
+.d-body { padding:14px 18px; }
+.info-row { display:flex; gap:10px; margin-bottom:13px; align-items:flex-start; }
+.i-icon { width:30px; height:30px; background:var(--warm); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
+.i-cnt { flex:1; }
+.i-label { font-size:10px; color:rgba(26,16,8,.4); letter-spacing:.08em; margin-bottom:2px; }
+.i-val { font-size:13px; color:var(--ink); line-height:1.5; }
+.i-val a { color:var(--red); text-decoration:none; font-weight:700; }
+.d-actions { display:flex; gap:8px; padding:0 18px 18px; }
+.d-btn { flex:1; padding:11px; border:none; border-radius:10px; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; letter-spacing:.04em; }
+.d-btn:active { opacity:.8; }
+.d-btn.pri { background:var(--red); color:#fff; }
+.d-btn.sec { background:var(--warm); color:var(--ink); }
+
+/* ── FOOTER ── */
+footer {
+  position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+  width:100%; max-width:480px;
+  background:var(--ink); color:rgba(255,255,255,.35);
+  font-size:10px; text-align:center; padding:7px 16px; letter-spacing:.1em;
+}
+
+/* エリアカラー */
+.c-oita     { background:#c0392b18; color:#c0392b; }
+.c-fukuoka  { background:#2c7bb618; color:#2c7bb6; }
+.c-kurume   { background:#27ae6018; color:#27ae60; }
+.c-saga     { background:#8e44ad18; color:#8e44ad; }
+.c-kumamoto { background:#e67e2218; color:#e67e22; }
+.c-kinki    { background:#16a08518; color:#16a085; }
+.c-kanto    { background:#2c3e5018; color:#2c3e50; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-top">
+    <div class="logo">恋</div>
+    <div class="h-title">
+      <h1>想夫恋 全国店舗MAP</h1>
+      <p>SOFUREN NATIONAL STORE GUIDE</p>
+    </div>
+    <div class="badge" id="badge">43店舗</div>
+  </div>
+  <div class="filters" id="filters">
+    <button class="f-btn on"  data-area="all">すべて</button>
+    <button class="f-btn" data-area="大分">大分 10</button>
+    <button class="f-btn" data-area="福岡">福岡 16</button>
+    <button class="f-btn" data-area="久留米">久留米 7</button>
+    <button class="f-btn" data-area="佐賀">佐賀 3</button>
+    <button class="f-btn" data-area="熊本">熊本 3</button>
+    <button class="f-btn" data-area="近畿">近畿 1</button>
+    <button class="f-btn" data-area="関東">関東 3</button>
+  </div>
+</header>
+
+<div id="map"></div>
+
+<div class="list-wrap">
+  <div class="list-head">
+    <span class="list-label">店舗一覧</span>
+    <span class="list-cnt" id="listCnt"></span>
+  </div>
+  <div id="storeList"></div>
+</div>
+
+<footer>想夫恋 宇美店 後藤堅太郎 ｜ sofuren.com</footer>
+
+<div class="ov" id="ov"></div>
+<div class="drawer" id="drawer">
+  <div class="d-handle"></div>
+  <div class="d-head">
+    <div class="d-area-tag" id="dArea"></div>
+    <div class="d-name"     id="dName"></div>
+    <div class="d-home-note" id="dHome"></div>
+  </div>
+  <div class="d-body">
+    <div class="info-row">
+      <div class="i-icon">📍</div>
+      <div class="i-cnt"><div class="i-label">住　所</div><div class="i-val" id="dAddr"></div></div>
+    </div>
+    <div class="info-row">
+      <div class="i-icon">📞</div>
+      <div class="i-cnt"><div class="i-label">電　話</div><div class="i-val" id="dTel"></div></div>
+    </div>
+    <div class="info-row">
+      <div class="i-icon">🕐</div>
+      <div class="i-cnt"><div class="i-label">営業時間</div><div class="i-val" id="dHours"></div></div>
+    </div>
+  </div>
+  <div class="d-actions">
+    <button class="d-btn pri" id="dMapBtn">Googleマップで開く</button>
+    <button class="d-btn sec" id="dClose">閉じる</button>
+  </div>
+</div>
+
+<script>
+(function () {
+
+var STORES = [
+  {id:1,  n:"総本店",                area:"大分",   addr:"大分県日田市若宮町416-1",                    tel:"0973-24-3188", hrs:"11:00〜22:00（OS21:30）/ 元日休",      lat:33.3108,lng:130.9421},
+  {id:2,  n:"本館",                  area:"大分",   addr:"大分県日田市若宮町416-1",                    tel:"0973-24-3188", hrs:"総本店に準ずる",                      lat:33.3115,lng:130.9425},
+  {id:3,  n:"三本松店",              area:"大分",   addr:"大分県日田市三本松1-7-20",                   tel:"0973-22-0988", hrs:"11:00〜21:00 / 月曜休",              lat:33.3205,lng:130.9348},
+  {id:4,  n:"大山店",                area:"大分",   addr:"大分県日田市大山町西大山3754",               tel:"0973-52-2981", hrs:"11:00〜14:30 / 水曜休",              lat:33.2499,lng:130.9711},
+  {id:5,  n:"花月店",                area:"大分",   addr:"大分県日田市天神町47-6",                     tel:"0973-24-2218", hrs:"10:30〜20:30",                        lat:33.3397,lng:130.9413},
+  {id:6,  n:"玖珠店",                area:"大分",   addr:"大分県玖珠郡玖珠町山田豆田49-11",            tel:"0973-72-1956", hrs:"11:00〜19:00 / 火曜休",              lat:33.2792,lng:131.1386},
+  {id:7,  n:"友田店",                area:"大分",   addr:"大分県日田市南友田110-5",                    tel:"0973-24-6280", hrs:"11:00〜21:00",                        lat:33.3244,lng:130.9156},
+  {id:8,  n:"羽屋店",                area:"大分",   addr:"大分市上田町2丁目1-1",                       tel:"097-546-3435", hrs:"11:00〜21:00 / 月曜休",              lat:33.2158,lng:131.5960},
+  {id:9,  n:"中津店",                area:"大分",   addr:"大分県中津市中央町2丁目1-4",                 tel:"0979-64-6563", hrs:"11:00〜21:00 / 水曜休",              lat:33.5890,lng:131.1875},
+  {id:10, n:"別府春木店",            area:"大分",   addr:"大分県別府市春木1-3",                        tel:"0977-75-9877", hrs:"11:00〜21:00",                        lat:33.3076,lng:131.4884},
+  {id:11, n:"七隈店",                area:"福岡",   addr:"福岡市城南区七隈4丁目8-19",                 tel:"092-231-2214", hrs:"11:00〜20:30 / 木曜休",              lat:33.5534,lng:130.3619},
+  {id:12, n:"小郡店",                area:"福岡",   addr:"小郡市津古1133-1",                           tel:"0942-75-3488", hrs:"11:00〜21:00 / 木曜休",              lat:33.4461,lng:130.5533},
+  {id:13, n:"大野城店",              area:"福岡",   addr:"大野城市錦町3-5-38",                         tel:"092-572-2133", hrs:"11:00〜20:00 / 木曜休",              lat:33.5381,lng:130.4775},
+  {id:14, n:"春日大土居店",          area:"福岡",   addr:"春日市天神山3-33",                           tel:"092-582-2080", hrs:"11:00〜20:30 / 木曜休",              lat:33.5169,lng:130.4520},
+  {id:15, n:"宇美店",                area:"福岡",   addr:"福岡県糟屋郡宇美町大字宇美3293-1",          tel:"092-933-3991", hrs:"11:00〜15:00 / 17:30〜19:30 / 木曜休", lat:33.5691,lng:130.5252, home:true},
+  {id:16, n:"渡辺通店",              area:"福岡",   addr:"福岡市中央区渡辺通5丁目1-22",               tel:"092-406-3474", hrs:"9:00〜翌2:30",                        lat:33.5888,lng:130.4043},
+  {id:17, n:"博多駅前店",            area:"福岡",   addr:"福岡市博多区博多駅前3丁目16-2",             tel:"092-481-0038", hrs:"11:00〜21:30 / 木曜休",              lat:33.5889,lng:130.4136},
+  {id:18, n:"福岡インター店",        area:"福岡",   addr:"福岡市東区松島3-34-27",                      tel:"092-623-6041", hrs:"11:00〜20:20 / 木・第3日曜休",       lat:33.6265,lng:130.4413},
+  {id:19, n:"桧原店",                area:"福岡",   addr:"福岡市南区桧原3-21-1",                       tel:"092-565-5757", hrs:"11:00〜20:45 / 木曜休",              lat:33.5351,lng:130.3973},
+  {id:20, n:"飯塚店",                area:"福岡",   addr:"飯塚市大字幸袋89-5",                         tel:"0948-29-0150", hrs:"11:00〜20:00 / 火曜休",              lat:33.6641,lng:130.6854},
+  {id:21, n:"甘木店",                area:"福岡",   addr:"福岡県朝倉市堤1736-87",                      tel:"0946-23-0607", hrs:"11:00〜21:00 / 木曜休",              lat:33.4170,lng:130.6668},
+  {id:22, n:"生の松原店",            area:"福岡",   addr:"福岡市西区生の松原1丁目20-32",              tel:"092-883-5033", hrs:"11:00〜19:30 / 火曜休",              lat:33.5829,lng:130.3054},
+  {id:23, n:"古賀インター店",        area:"福岡",   addr:"福岡県古賀市川原1527-1",                     tel:"092-410-3126", hrs:"11:00〜15:00 / 火曜休",              lat:33.7179,lng:130.4845},
+  {id:24, n:"折尾店",                area:"福岡",   addr:"北九州市八幡西区岸の浦13-8",                tel:"093-616-6163", hrs:"11:00〜20:00 / 水曜休",              lat:33.8573,lng:130.7056},
+  {id:25, n:"上大利店",              area:"福岡",   addr:"大野城市上大利4丁目12-23",                   tel:"092-558-2077", hrs:"11:00〜22:00",                        lat:33.5130,lng:130.4831},
+  {id:26, n:"田川伊加利店",          area:"福岡",   addr:"田川市伊加利748-1",                          tel:"0947-23-2266", hrs:"11:00〜21:00 / 月曜休",              lat:33.6270,lng:130.8371},
+  {id:27, n:"久留米東町店",          area:"久留米", addr:"福岡県久留米市東町33-18",                    tel:"0942-34-4745", hrs:"11:30〜21:00 / 不定休",              lat:33.3119,lng:130.5191},
+  {id:28, n:"田主丸店",              area:"久留米", addr:"久留米市田主丸町豊城1774-4",                 tel:"0943-73-0585", hrs:"11:00〜21:00 / 水曜休",              lat:33.3422,lng:130.6828},
+  {id:29, n:"筑後赤坂店",            area:"久留米", addr:"筑後市栗田578-45",                            tel:"0942-53-5666", hrs:"11:30〜14:30 / 17:00〜20:30",        lat:33.2366,lng:130.5075},
+  {id:30, n:"久留米中央公園前店",    area:"久留米", addr:"久留米市相生町1923-4",                       tel:"0942-32-2029", hrs:"11:00〜21:00 / 水曜休",              lat:33.3191,lng:130.5301},
+  {id:31, n:"東合川店",              area:"久留米", addr:"久留米市東合川1丁目10-21",                   tel:"0942-45-0398", hrs:"11:00〜22:00 / 月曜休",              lat:33.3209,lng:130.5448},
+  {id:32, n:"大善寺店",              area:"久留米", addr:"久留米市大善寺町宮本342-17",                 tel:"0942-27-2455", hrs:"11:00〜20:30 / 水曜休",              lat:33.2833,lng:130.4852},
+  {id:33, n:"JRフレスタ久留米店",    area:"久留米", addr:"久留米市城南町2-34",                         tel:"0942-65-7725", hrs:"11:00〜21:00",                        lat:33.3201,lng:130.5019},
+  {id:34, n:"兵庫店",                area:"佐賀",   addr:"佐賀市兵庫町大字瓦町1055-4",                 tel:"0952-23-0945", hrs:"11:20〜19:30 / 木曜休",              lat:33.2689,lng:130.3305},
+  {id:35, n:"武雄店",                area:"佐賀",   addr:"武雄市武雄町大字武雄2028-1",                 tel:"0954-22-2618", hrs:"11:00〜19:00 / 水曜休",              lat:33.1841,lng:129.9949},
+  {id:36, n:"元町店",                area:"佐賀",   addr:"佐賀県鳥栖市元町1351-5",                     tel:"0942-84-5682", hrs:"11:00〜19:30 / 火曜休",              lat:33.3746,lng:130.5067},
+  {id:37, n:"熊本東バイパス御幸店",  area:"熊本",   addr:"熊本市南区御幸笛田2-18-1",                  tel:"096-285-6462", hrs:"11:00〜21:30 / 水曜休",              lat:32.7634,lng:130.7075},
+  {id:38, n:"熊本菊陽店",            area:"熊本",   addr:"熊本県菊池郡菊陽町津久礼2515-13",           tel:"096-284-1665", hrs:"11:30〜20:30 / 月曜休",              lat:32.8609,lng:130.8033},
+  {id:39, n:"益城インター店",        area:"熊本",   addr:"熊本市東区沙土原1丁目14-3654-1",            tel:"096-285-8270", hrs:"11:00〜21:30",                        lat:32.7898,lng:130.7752},
+  {id:40, n:"京都七条大宮店",        area:"近畿",   addr:"京都府京都市下京区七条通大宮東入大工町96",  tel:"075-708-6787", hrs:"11:00〜14:30 / 17:30〜20:00 / 水木休", lat:34.9894,lng:135.7494},
+  {id:41, n:"横浜青葉店",            area:"関東",   addr:"神奈川県横浜市青葉区桂台2丁目38-15",        tel:"045-963-1888", hrs:"11:30〜15:00（土日15:30）/ 火曜休",   lat:35.5544,lng:139.4989},
+  {id:42, n:"東京上野店",            area:"関東",   addr:"東京都台東区上野4-6-7",                      tel:"03-5826-8865", hrs:"11:00〜22:00（日〜21:00）",            lat:35.7089,lng:139.7742},
+  {id:43, n:"神田店",                area:"関東",   addr:"東京都千代田区鍛冶町2丁目12-9",             tel:"03-3525-7007", hrs:"月〜金 11:00〜21:30 / 土日休",          lat:35.6931,lng:139.7718}
+];
+
+var AC = {
+  "大分":  {cls:"c-oita",     pin:"#c0392b"},
+  "福岡":  {cls:"c-fukuoka",  pin:"#2c7bb6"},
+  "久留米":{cls:"c-kurume",   pin:"#27ae60"},
+  "佐賀":  {cls:"c-saga",     pin:"#8e44ad"},
+  "熊本":  {cls:"c-kumamoto", pin:"#e67e22"},
+  "近畿":  {cls:"c-kinki",    pin:"#16a085"},
+  "関東":  {cls:"c-kanto",    pin:"#2c3e50"}
+};
+
+// エリアごとのfitBounds用座標範囲
+var BOUNDS = {
+  all:     [[31.0,128.5],[36.5,141.5]],
+  "大分":  [[32.8,130.5],[34.0,131.9]],
+  "福岡":  [[33.2,129.8],[34.2,131.2]],
+  "久留米":[[33.1,130.2],[33.6,130.9]],
+  "佐賀":  [[32.9,129.6],[33.7,130.9]],
+  "熊本":  [[32.6,130.4],[33.1,131.1]],
+  "近畿":  [[34.7,135.2],[35.2,136.0]],
+  "関東":  [[35.4,139.2],[36.1,140.1]]
+};
+
+// ── Leaflet 初期化 ──
+var map = L.map('map', {
+  center: [33.4, 130.7],
+  zoom: 8,
+  zoomControl: true,
+  scrollWheelZoom: false  // スマホでのスクロール干渉を防止
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 18
+}).addTo(map);
+
+var currentArea = "all";
+var markerGroup = L.layerGroup().addTo(map);
+
+// ── カスタムピンアイコン作成 ──
+function makeIcon(color, isHome) {
+  var size = isHome ? 14 : 10;
+  var border = isHome ? '2.5px solid #b8860b' : '2px solid #fff';
+  var shadow = '0 1px 4px rgba(0,0,0,0.5)';
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:' + size + 'px;height:' + size + 'px;background:' + color +
+          ';border:' + border + ';border-radius:50%;box-shadow:' + shadow + ';"></div>',
+    iconSize:   [size, size],
+    iconAnchor: [size/2, size/2],
+    popupAnchor:[0, -(size/2 + 4)]
+  });
+}
+
+// ── マーカー描画 ──
+function drawMarkers(stores) {
+  markerGroup.clearLayers();
+  stores.forEach(function(s) {
+    var color = s.home ? '#b8860b' : AC[s.area].pin;
+    var marker = L.marker([s.lat, s.lng], { icon: makeIcon(color, s.home) });
+
+    var popupHtml =
+      '<div class="popup-area">' + s.area + '地区</div>' +
+      '<div class="popup-name">想夫恋 ' + s.n + '</div>' +
+      '<button class="popup-detail-btn" onclick="openDrawerById(' + s.id + ')">詳細を見る</button>';
+
+    marker.bindPopup(popupHtml, { minWidth: 160, maxWidth: 220 });
+    marker.addTo(markerGroup);
+  });
+}
+
+// ── リスト描画 ──
+function drawList(stores) {
+  var el = document.getElementById('storeList');
+  el.innerHTML = '';
+  document.getElementById('listCnt').textContent = stores.length + '件表示中';
+  document.getElementById('badge').textContent   = stores.length + '店舗';
+
+  stores.forEach(function(s, i) {
+    var c = AC[s.area];
+    var d = document.createElement('div');
+    d.className = 'card' + (s.home ? ' home' : '');
+    d.style.animationDelay = (i * 0.025) + 's';
+    d.innerHTML =
+      '<div class="card-inner">' +
+        '<div class="dot" style="background:' + c.pin + '"></div>' +
+        '<div class="card-body">' +
+          '<div class="card-name">想夫恋 ' + s.n +
+            (s.home ? '<span class="home-tag">堅太郎の店</span>' : '') +
+          '</div>' +
+          '<div class="card-addr">' + s.addr + '</div>' +
+        '</div>' +
+        '<div class="area-tag ' + c.cls + '">' + s.area + '</div>' +
+      '</div>';
+    d.addEventListener('click', function() {
+      map.flyTo([s.lat, s.lng], 14, { duration: 0.8 });
+      openDrawer(s);
+    });
+    el.appendChild(d);
+  });
+}
+
+function getFiltered(area) {
+  return area === 'all' ? STORES : STORES.filter(function(s){ return s.area === area; });
+}
+
+function render(area) {
+  currentArea = area;
+  var stores = getFiltered(area);
+  drawMarkers(stores);
+  drawList(stores);
+
+  var b = BOUNDS[area] || BOUNDS.all;
+  map.fitBounds(b, { padding: [20, 20], animate: true });
+}
+
+// ── フィルター ──
+document.getElementById('filters').addEventListener('click', function(e) {
+  var btn = e.target.closest('.f-btn');
+  if (!btn) return;
+  document.querySelectorAll('.f-btn').forEach(function(b){ b.classList.remove('on'); });
+  btn.classList.add('on');
+  render(btn.dataset.area);
+});
+
+// ── ドロワー ──
+window.openDrawerById = function(id) {
+  var s = STORES.find(function(x){ return x.id === id; });
+  if (s) openDrawer(s);
+};
+
+function openDrawer(s) {
+  var c = AC[s.area];
+  document.getElementById('dArea').textContent  = s.area + '地区';
+  document.getElementById('dArea').className    = 'd-area-tag ' + c.cls;
+  document.getElementById('dName').textContent  = '想夫恋 ' + s.n;
+  document.getElementById('dHome').textContent  = s.home ? '★ここが後藤堅太郎の店です' : '';
+  document.getElementById('dAddr').textContent  = s.addr;
+  document.getElementById('dTel').innerHTML     = '<a href="tel:' + s.tel.replace(/-/g,'') + '">' + s.tel + '</a>';
+  document.getElementById('dHours').textContent = s.hrs;
+  document.getElementById('dMapBtn').onclick    = function(){
+    window.open('https://www.google.com/maps/search/?api=1&query=' +
+      encodeURIComponent('想夫恋 ' + s.n + ' ' + s.addr), '_blank');
+  };
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('ov').classList.add('open');
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('ov').classList.remove('open');
+}
+document.getElementById('dClose').addEventListener('click', closeDrawer);
+document.getElementById('ov').addEventListener('click', closeDrawer);
+
+// ── 初期表示 ──
+render('all');
+
+})();
+</script>
+</body>
+</html>
